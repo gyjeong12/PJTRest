@@ -1,6 +1,6 @@
 'use strict';
-import { BrowserRouter as Router, Route, Link } from 'react-router-dom'
-import Radium from 'radium';
+import { BrowserRouter as Router, Switch, Route, Link } from 'react-router-dom'
+import axios from 'axios'
  
 const React = require('react');
 const ReactDOM = require('react-dom');
@@ -16,9 +16,11 @@ class App extends React.Component {
         return (
             <Router>
                 <div>
-                    <Route exact path="/" component={BDtoList}></Route>
-                    <Route exact path="/write_view" component={Write}></Route>
-                    <Route exact path ="/bDtoes/:id" component={Update}></Route>
+                    <Switch>
+                        <Route exact path="/" component={BDtoList}/>
+                        <Route exact path="/write_view" component={Write}/>
+                        <Route exact path ="/bDtoes/:id" component={Update}/>
+                    </Switch>
                 </div>
             </Router>
         )
@@ -41,25 +43,26 @@ class BDtoList extends React.Component{
     //When this page is loaded, it GETs the JSON data from localhost:8181/bDtoes
     //Then we set the state to the JSON response from our GET request.
     componentDidMount() {
-        client({method: 'GET', path: '/bDtoes'}).done(response => {
-            this.setState({bDtoes: response.entity._embedded.bDtoes});
-        });
+        axios.get('http://localhost:8181/bDtoes/').then(response => { this.setState({bDtoes: response.data._embedded.bDtoes})});
     }
        
     handleDelete = (bid) => {
         var bdata = {
                 "bid": bid
         }
+ 
        
-        fetch('http://localhost:8181/bDtoes/' + bid, {
+        axios.delete('http://localhost:8181/bDtoes/' + bid).then(response => {
+            this.setState(prevState => ({bDtoes: prevState.bDtoes.filter(bdto => bdto.bid !== bid)}))
+        })
+        .catch(error => alert(error.data));
+       
+        /*fetch('http://localhost:8181/bDtoes/' + bid, {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(bdata)
         })
-        //.then(response => alert(response.text))
-        .then(response => this.setState(prevState => ({bDtoes: prevState.bDtoes.filter(bdto => bdto.bid !== bid)})))
-        //this.forceUpdate();
-        //this.state.bDtoes.forEach(bdto => console.log(bdto.bid));
+        .then(response => this.setState(prevState => ({bDtoes: prevState.bDtoes.filter(bdto => bdto.bid !== bid)})))*/
     }  
  
     render() {
@@ -80,7 +83,6 @@ class BDtoList extends React.Component{
        
         //bDtoes will render each BDto which itself will render the bid, bname, and btitle values in the database
         const bDtoes = this.state.bDtoes.map(bdto =>
-//          <BDto key={bdto.bid} bdto={bdto}/>
             <BDto key={bdto._links.self.href} bdto={bdto} onDelete={this.handleDelete}/>
         );
        
@@ -142,7 +144,6 @@ class Write extends React.Component {
     }*/
  
     handleChange = (e) => {
-        console.log(e.target.name + " ***** " + e.target.value);
         this.setState({
             [e.target.name]: e.target.value,
         });
@@ -154,48 +155,12 @@ class Write extends React.Component {
                 "btitle": this.state.bTitle,
                 "bcontent": this.state.bContent
         }
-       
-        console.log(data);
-        /*data.set('bname', this.state.bName);
-        data.set('btitle', this.state.bTitle);
-        data.set('bcontent', this.state.bContent);*/
-       
-        fetch('http://localhost:8181/bDtoes', {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: {'Content-Type': 'application/json'}
-        })
-        //.then(response => response.text())
-        //.then(response => alert(response))
-       
-        this.props.history.push("/");
+ 
+        axios.post('http://localhost:8181/bDtoes/', data).then(response => {this.props.history.push("/")}).catch(error => alert(error.data));
+ 
     }
    
-   
-    /*
-     * delete = () => {
-     *  fetch('http://localhost:8181/bDtoes/' + this.state.bid, {
-     * method: 'DELETE'
-     * }
-     */
-//  handleDelete = () => {
-//      var data = {
-//              "bid": this.state.bId
-//      }
-//     
-//      fetch('http://localhost:8181/bDtoes', {
-//          method: 'DELETE',
-//          body: JSON.stringify(data),
-//          headers: {'Content-Type': 'application/json'}
-//      })
-//      .then(function(response) {
-//          console.log(response.json())
-//          return response.json();
-//      })
-//  }
-   
     render() {
-    //Console.log(this.state.bDto);
     return(
         <div>
         <table width="500" cellPadding="0" cellSpacing="0" border="1">
@@ -246,20 +211,16 @@ class Write extends React.Component {
 class Update extends React.Component {
     constructor(props) {
         super(props);
-        this.state = {bname: [], btitle: [], bcontent: []};
-        //this.state = {bid: [] };
+        this.state = {bid: '', bname: '', btitle: '', bcontent: ''};
     }
    
     componentDidMount() {
         client({method: 'GET', path: '/bDtoes/' + this.props.match.params.id }).done(response => {
-            this.setState({bname: response.entity.bname, btitle: response.entity.btitle, bcontent: response.entity.bcontent})
-            //this.setState({bDto: response.entity});
+            this.setState({bid: response.entity.bid, bname: response.entity.bname, btitle: response.entity.btitle, bcontent: response.entity.bcontent})
         });
-        //console.log(this.state.bDto.bid);
     }
  
     handleChange = (e) => {
-        //console.log(e.target.name + " ***** " + e.target.value);
         this.setState({
             [e.target.name]: e.target.value,
         });
@@ -269,25 +230,16 @@ class Update extends React.Component {
         var data = {
                 "bname": this.state.bname,
                 "btitle": this.state.btitle,
-                "bcontent": this.state.bContent
+                "bcontent": this.state.bcontent
         }
-       
-        console.log(data);
-        /*data.set('bname', this.state.bName);
-        data.set('btitle', this.state.bTitle);
-        data.set('bcontent', this.state.bContent);*/
-       
-        fetch('http://localhost:8181/bDtoes', {
-            method: 'UPDATE',
-            body: JSON.stringify(data),
-            headers: {'Content-Type': 'application/json'}
+ 
+        axios.patch('http://localhost:8181/bDtoes/' + this.props.match.params.id, data).then(() => {
+            this.props.history.push("/");
         })
-       
-        this.props.history.push("/");
+        .catch(error => { console.log(error) });
     }
  
     render() {
-    //Console.log(this.state.bDto);
     return(
         <div>
         <table width="500" cellPadding="0" cellSpacing="0" border="1">
@@ -297,7 +249,7 @@ class Update extends React.Component {
                     <td>
                         <input
                             type="text"
-                            name="bName"
+                            name="bname"
                             value={this.state.bname}
                             size="50"
                             onChange={this.handleChange}>
@@ -309,7 +261,7 @@ class Update extends React.Component {
                     <td>
                         <input
                             type="text"
-                            name="bTitle"
+                            name="btitle"
                             value={this.state.btitle}
                             size="50"
                             onChange={this.handleChange}>
@@ -320,7 +272,7 @@ class Update extends React.Component {
                     <td>Content</td>
                     <td>
                         <textarea
-                            name="bContent"
+                            name="bcontent"
                             rows="10"
                             value={this.state.bcontent}
                             onChange={this.handleChange}>
@@ -342,5 +294,3 @@ ReactDOM.render(
         <App />,
     document.getElementById('react')
 )
- 
-//module.exports = Radium(Rows);
